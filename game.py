@@ -2,6 +2,7 @@ import os
 import pygame
 import random
 from enemy import Invader
+from player import Player
 
 # Constants
 SCREEN_WIDTH = 1024
@@ -67,12 +68,13 @@ for row_count in range(0, ENEMY_ROWS):
     row_x = 0
     row_y += ROW_Y_INCREMENT
 
+player_cannon = Player(0, SCREEN_HEIGHT)
+
 # Custom events
 ENEMY_MOVES = pygame.USEREVENT+1
 pygame.time.set_timer(ENEMY_MOVES, ENEMY_MOVEMENT_THRESHOLD)
 
 # Control variables
-first_loop = True
 enemy_update_sprite = False
 enemy_should_move = False
 move_right = True
@@ -85,6 +87,7 @@ previously_moved_to_bottom = False
 while not done:
     # Events
     for event in pygame.event.get():
+        # Calc enemy movement
         if event.type == ENEMY_MOVES:
             enemy_should_move = True
             enemy_update_sprite = not enemy_update_sprite
@@ -97,24 +100,38 @@ while not done:
             is_first_out_of_x = first_enemy_next_pos <= ROW_X_INCREMENT
             is_last_out_of_x = SCREEN_WIDTH/last_enemy_next_pos == 1.00
 
-            if not first_loop:
-                if is_first_out_of_x and not previously_moved_to_bottom:
-                    move_right = True
-                    move_bottom = True
-                elif is_last_out_of_x and not previously_moved_to_bottom:
-                    move_right = False
-                    move_bottom = True
-                else:
-                    move_bottom = False
+            # If moving left to right makes last enemy to run out of bounds.
+            if move_right and is_last_out_of_x and not previously_moved_to_bottom:
+                move_right = False
+                move_bottom = True
 
-            first_loop = False
+            # If moving right to right makes last enemy to run out of bounds.
+            elif not move_right and is_first_out_of_x and not previously_moved_to_bottom:
+                move_right = True
+                move_bottom = True
 
+            # If just moving horizontally
+            else:
+                move_bottom = False
+
+        # Calc player movement
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_LEFT:
+                player_cannon.move_x(False)
+            elif event.key == pygame.K_RIGHT:
+                player_cannon.move_x(True)
+
+            if event.key == pygame.K_SPACE:
+                print('PEW PEW!!!')
+
+        # Handle game exit
         if event.type == pygame.QUIT:
             done = True
 
     # Reset screen
     screen.fill((0, 0, 0))
 
+    # Process Enemy
     for row in enemy_grid:
         for enemy in row:
             if enemy_should_move and move_bottom:
@@ -129,6 +146,9 @@ while not done:
         enemy_should_move = False
 
     previously_moved_to_bottom = True if move_bottom else False
+
+    # Process player
+    pygame.draw.polygon(screen, player_cannon.color, player_cannon.get_player_shape())
 
     # Extra stuff
     pygame.display.flip()
